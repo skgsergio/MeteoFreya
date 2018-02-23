@@ -1,6 +1,8 @@
 #include "config.h"
 
+#include <esp32-hal-log.h>
 #include <WiFi.h>
+#include <Wire.h>
 
 /* InfluxDB */
 #if INFLUXDB_USE_HTTP
@@ -36,37 +38,16 @@ SFE_BMP180 bmp180_sensor;
 BH1750 bh1750_sensor(BH1750_ADDR);
 #endif
 
-/* Serial print */
-#if SERIAL_DEBUG
-#define SERIAL_PRINTLN(MSG) Serial.println(MSG)
-#define SERIAL_PRINT(MSG) Serial.print(MSG)
-#else
-#define SERIAL_PRINTLN(MSG)
-#define SERIAL_PRINT(MSG)
-#endif
 
 /**
  * Setup
  **/
 void setup() {
-#if SERIAL_DEBUG
-  Serial.begin(115200);
-#endif
-
-  SERIAL_PRINTLN("Starting MeteoFreya...");
-
-  /* Connect to WiFi */
-  SERIAL_PRINT("Connecting to " + String(WLAN_SSID));
-  WiFi.begin(WLAN_SSID, WLAN_KEY);
-  while (WiFi.status() != WL_CONNECTED) {
-    SERIAL_PRINT(".");
-    delay(500);
-  }
-  SERIAL_PRINTLN(" " + WiFi.localIP());
+  log_i("Starting MeteoFreya...");
 
   /* Initialize sensors */
 #if USE_DHT
-  SERIAL_PRINTLN("Starting DHT" + String(DHT_MODEL) + "...");
+  log_i("Starting DHT%d...", DHT_MODEL);
 #if DHT_MODEL == 11 || DHT_MODEL == 12
   while (dht_sensor.read11(DHT_PIN) != DHTLIB_OK) {
     delay(2000);
@@ -79,18 +60,47 @@ void setup() {
 #endif
 
 #if USE_BMP180
-  SERIAL_PRINTLN("Starting BMP180...");
+  log_i("Starting BMP180...");
   while (!bmp180_sensor.begin()) {
     delay(1000);
   }
 #endif
 
 #if USE_BH1750
-  SERIAL_PRINTLN("Starting BH1750...");
+  log_i("Starting BH1750...");
   bh1750_sensor.begin(BH1750_CONTINUOUS_HIGH_RES_MODE);
 #endif
 
-  SERIAL_PRINTLN("MeteoFreya started!");
+  /* Connect to WiFi */
+  log_i("Connecting to '%s'...", WLAN_SSID);
+  WiFi.onEvent(WiFi_event);
+  WiFi.begin(WLAN_SSID, WLAN_KEY);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+  }
+}
+
+/* Process WiFi events */
+void WiFi_event(WiFiEvent_t event, system_event_info_t info) {
+
+  switch (event) {
+  case SYSTEM_EVENT_STA_GOT_IP:
+    log_i("Got IP: %s", WiFi.localIP().toString().c_str());
+    break;
+
+  case SYSTEM_EVENT_STA_LOST_IP:
+    log_i("Lost IP.");
+    break;
+
+  case SYSTEM_EVENT_STA_CONNECTED:
+    log_i("Connected!");
+    break;
+
+  case SYSTEM_EVENT_STA_DISCONNECTED:
+    log_i("Disconnected, reconnecting...");
+    WiFi.reconnect();
+    break;
+  }
 }
 
 /**
@@ -157,15 +167,15 @@ int readDHT(dht sensor, uint8_t pin, float &T, float &H) {
     break;
 
   case DHTLIB_ERROR_CHECKSUM:
-    SERIAL_PRINTLN("[DHT22]: Checksum error");
+    log_e("Checksum error.");
     break;
 
   case DHTLIB_ERROR_TIMEOUT:
-    SERIAL_PRINTLN("[DHT22]: Timeout error");
+    log_e("Timeout error.");
     break;
 
   default:
-    SERIAL_PRINTLN("[DHT22]: Unknown error");
+    log_e("Unknown error.");
     break;
   }
 
@@ -212,7 +222,8 @@ int readBMP180(SFE_BMP180 sensor, double &P, double &T) {
   ret = sensor.startTemperature();
 
   if (ret == 0) {
-    SERIAL_PRINTLN("[BPM180]: error starting temperature measurement.");
+    log_e("Error starting temperature measurement.");
+    Wire.reset();
     return 1;
   }
 
@@ -221,14 +232,16 @@ int readBMP180(SFE_BMP180 sensor, double &P, double &T) {
   ret = sensor.getTemperature(T);
 
   if (ret == 0) {
-    SERIAL_PRINTLN("[BPM180]: error retrieving temperature measurement.");
+    log_e("Error retrieving temperature measurement.");
+    Wire.reset();
     return 1;
   }
 
   ret = sensor.startPressure(3);
 
   if (ret == 0) {
-    SERIAL_PRINTLN("[BPM180]: error starting pressure measurement.");
+    log_e("Error starting pressure measurement.");
+    Wire.reset();
     return 1;
   }
 
@@ -237,7 +250,8 @@ int readBMP180(SFE_BMP180 sensor, double &P, double &T) {
   ret = sensor.getPressure(P, T);
 
   if (ret == 0) {
-    SERIAL_PRINTLN("[BPM180]: error retrieving pressure measurement.");
+    log_e("Error retrieving pressure measurement.");
+    Wire.reset();
     return 1;
   }
 
@@ -254,13 +268,13 @@ void sendLineToInfluxDB(String database, String line) {
   int response = http.POST(line);
   http.end();
 
-  SERIAL_PRINTLN("[InfluxDB:" + String(response) + "]: " + line);
+  log_i("HTTP(%d) -> %s", response, line.c_str());
 #else
   WiFiUDP udp;
   udp.beginPacket(INFLUXDB_HOST, INFLUXDB_PORT);
   udp.print(line);
   udp.endPacket();
 
-  SERIAL_PRINTLN("[InfluxDB:UDP]: " + line);
+  log_i("UDP -> %s", line.c_str());
 #endif
 }

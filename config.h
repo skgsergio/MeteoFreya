@@ -2,7 +2,6 @@
 #define __CONFIG_H__
 
 #define SENSOR_NAME "home"
-#define SERIAL_DEBUG true
 
 /**
  * WiFi Preferences

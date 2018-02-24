@@ -71,37 +71,21 @@ void setup() {
   bh1750_sensor.begin(BH1750_CONTINUOUS_HIGH_RES_MODE);
 #endif
 
-  /* Connect to WiFi */
+  connectToWiFi();
+}
+
+/**
+ * Connect to WiFi
+ **/
+void connectToWiFi() {
   log_i("Connecting to '%s'...", WLAN_SSID);
-  WiFi.onEvent(WiFi_event);
   WiFi.begin(WLAN_SSID, WLAN_KEY);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
   }
+  log_i("Got IP: %s", WiFi.localIP().toString().c_str());
 }
 
-/* Process WiFi events */
-void WiFi_event(WiFiEvent_t event, system_event_info_t info) {
-
-  switch (event) {
-  case SYSTEM_EVENT_STA_GOT_IP:
-    log_i("Got IP: %s", WiFi.localIP().toString().c_str());
-    break;
-
-  case SYSTEM_EVENT_STA_LOST_IP:
-    log_i("Lost IP.");
-    break;
-
-  case SYSTEM_EVENT_STA_CONNECTED:
-    log_i("Connected!");
-    break;
-
-  case SYSTEM_EVENT_STA_DISCONNECTED:
-    log_i("Disconnected, reconnecting...");
-    WiFi.reconnect();
-    break;
-  }
-}
 
 /**
  * Loop
@@ -126,7 +110,13 @@ uint16_t bh1750_lux = 0;
 void loop() {
   delay(LOOP_DELAY);
 
+  /* Check WiFi status */
+  if (WiFi.status() != WL_CONNECTED) {
+    connectToWiFi();
+  }
+
 #if USE_DHT
+  /* Read DHT sensor */
   dht_ret = readDHT(dht_sensor, DHT_PIN, dht_temp, dht_hum);
   dht_hidx = calcHeatIndex(dht_temp, dht_hum);
 
@@ -136,6 +126,7 @@ void loop() {
 #endif
 
 #if USE_BMP180
+  /* Read BMP180 sensor */
   bmp180_ret = readBMP180(bmp180_sensor, bmp180_press, bmp180_temp);
 
   if (bmp180_ret == 0) {
@@ -144,6 +135,7 @@ void loop() {
 #endif
 
 #if USE_BH1750
+  /* Read BH1750 sensor */
   lux = bh1750_sensor.readLightLevel();
 
   sendLineToInfluxDB(INFLUXDB_DATABASE, "bh1752,sensor=" + String(SENSOR_NAME) + " lux=" + String(bh1750_lux));
@@ -151,7 +143,9 @@ void loop() {
 }
 
 #if USE_DHT
-/* Read DHT sensor */
+/**
+ * DHT Sensor
+ **/
 int readDHT(dht sensor, uint8_t pin, float &T, float &H) {
 #if DHT_MODEL == 11 || DHT_MODEL == 12
   int ret = sensor.read11(pin);
@@ -182,7 +176,10 @@ int readDHT(dht sensor, uint8_t pin, float &T, float &H) {
   return ret;
 }
 
-/* Calc Heat Index: http://www.wpc.ncep.noaa.gov/html/heatindex_equation.shtml */
+/**
+ * Calc Heat Index
+ * http://www.wpc.ncep.noaa.gov/html/heatindex_equation.shtml
+ **/
 float calcHeatIndex(float T, float H) {
   float hi;
 
@@ -215,7 +212,9 @@ float calcHeatIndex(float T, float H) {
 #endif
 
 #if USE_BMP180
-/* Read BMP180 sensor */
+/**
+ * BMP180 Sensor
+ **/
 int readBMP180(SFE_BMP180 sensor, double &P, double &T) {
   char ret;
 
@@ -259,6 +258,9 @@ int readBMP180(SFE_BMP180 sensor, double &P, double &T) {
 }
 #endif
 
+/**
+ * Send line to InfluxDB
+ **/
 void sendLineToInfluxDB(String database, String line) {
 #if INFLUXDB_USE_HTTP
   HTTPClient http;

@@ -79,13 +79,25 @@ void setup() {
  **/
 void connectToWiFi() {
   log_i("Connecting to '%s'...", WLAN_SSID);
-  WiFi.begin(WLAN_SSID, WLAN_KEY);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-  }
-  log_i("Got IP: %s", WiFi.localIP().toString().c_str());
-}
 
+  WiFi.begin(WLAN_SSID, WLAN_KEY);
+  WiFi.setHostname("MeteoFreya");
+
+  while ((WiFi.status() != WL_CONNECTED) &&
+         (WiFi.status() != WL_NO_SSID_AVAIL) &&
+         (WiFi.status() != WL_CONNECT_FAILED)) {
+    delay(1000);
+  }
+
+  if (WiFi.status() == WL_CONNECTED)  {
+    log_i("Got IP: %s", WiFi.localIP().toString().c_str());
+  }
+  else {
+    log_e("Connection failed. Restarting in 10 seconds...");
+    delay(10000);
+    ESP.restart();
+  }
+}
 
 /**
  * Loop

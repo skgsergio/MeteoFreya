@@ -139,7 +139,7 @@ void loop() {
 
 #if USE_BMP180
   /* Read BMP180 sensor */
-  bmp180_ret = readBMP180(bmp180_sensor, bmp180_press, bmp180_temp);
+  bmp180_ret = readBMP180(bmp180_sensor, bmp180_press, bmp180_temp, BMP180_ALTITUDE);
 
   if (bmp180_ret == 0) {
     sendLineToInfluxDB(INFLUXDB_DATABASE, "bmp180,sensor=" + String(SENSOR_NAME) + " pressue=" + String(bmp180_press) + ",temperature=" + String(bmp180_temp));
@@ -227,7 +227,7 @@ float calcHeatIndex(float T, float H) {
 /**
  * BMP180 Sensor
  **/
-int readBMP180(SFE_BMP180 sensor, double &P, double &T) {
+int readBMP180(SFE_BMP180 sensor, double &P, double &T, double A) {
   char ret;
 
   ret = sensor.startTemperature();
@@ -265,6 +265,8 @@ int readBMP180(SFE_BMP180 sensor, double &P, double &T) {
     Wire.reset();
     return 1;
   }
+
+  P = sensor.sealevel(P, A);
 
   return 0;
 }

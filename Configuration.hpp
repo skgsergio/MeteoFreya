@@ -31,6 +31,7 @@
 #define DHT_PIN 13
 
 #define USE_BMP180 true
+#define BMP180_ALTITUDE 700
 
 #define USE_BH1750 false
 #define BH1750_ADDR 0x23

@@ -171,7 +171,7 @@ int readDHT(dht sensor, uint8_t pin, float &T, float &H) {
       T = sensor.temperature;
       H = sensor.humidity;
     } else {
-      log_e("Humidity sanity check error.")
+      log_e("Humidity sanity check error.");
       ret = -1;
     }
     break;

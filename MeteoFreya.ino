@@ -165,11 +165,15 @@ int readDHT(dht sensor, uint8_t pin, float &T, float &H) {
   int ret = sensor.read(pin);
 #endif
 
-  T = sensor.temperature;
-  H = sensor.humidity;
-
   switch (ret) {
   case DHTLIB_OK:
+    if ((sensor.humidity >= 0) && (sensor.humidity <= 100)) {
+      T = sensor.temperature;
+      H = sensor.humidity;
+    } else {
+      log_e("Humidity sanity check error.")
+      ret = -1;
+    }
     break;
 
   case DHTLIB_ERROR_CHECKSUM:
@@ -178,6 +182,18 @@ int readDHT(dht sensor, uint8_t pin, float &T, float &H) {
 
   case DHTLIB_ERROR_TIMEOUT:
     log_e("Timeout error.");
+    break;
+
+  case DHTLIB_ERROR_CONNECT:
+    log_e("Connect error.");
+    break;
+
+  case DHTLIB_ERROR_ACK_L:
+    log_e("Ack Low error.");
+    break;
+
+  case DHTLIB_ERROR_ACK_H:
+    log_e("Ack High error.");
     break;
 
   default:

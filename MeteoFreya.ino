@@ -80,8 +80,10 @@ void setup() {
 void connectToWiFi() {
   log_i("Connecting to '%s'...", WLAN_SSID);
 
-  WiFi.begin(WLAN_SSID, WLAN_KEY);
+  WiFi.disconnect();
+  WiFi.mode(WIFI_STA);
   WiFi.setHostname("MeteoFreya");
+  WiFi.begin(WLAN_SSID, WLAN_KEY);
 
   while ((WiFi.status() != WL_CONNECTED) &&
          (WiFi.status() != WL_NO_SSID_AVAIL) &&

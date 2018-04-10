@@ -167,12 +167,17 @@ int readDHT(dht sensor, uint8_t pin, float &T, float &H) {
 
   switch (ret) {
   case DHTLIB_OK:
-    if ((sensor.humidity >= 0) && (sensor.humidity <= 100)) {
+    if ((sensor.humidity < 0) || (sensor.humidity > 100)) {
+      log_e("Humidity range check error.");
+      ret = DHTLIB_INVALID_VALUE;
+    }
+    else if ((sensor.temperature < -40) || (sensor.temperature > 80)) {
+      log_e("Temperature range check error.");
+      ret = DHTLIB_INVALID_VALUE;
+    }
+    else {
       T = sensor.temperature;
       H = sensor.humidity;
-    } else {
-      log_e("Humidity sanity check error.");
-      ret = DHTLIB_INVALID_VALUE;
     }
     break;
 

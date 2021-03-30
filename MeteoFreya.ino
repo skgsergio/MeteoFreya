@@ -2,15 +2,9 @@
 
 #include <esp32-hal-log.h>
 #include <WiFi.h>
-#include <Wire.h>
 
 /* InfluxDB */
-#if INFLUXDB_USE_HTTP
 #include <HTTPClient.h>
-IPAddress influxdb_ip(INFLUXDB_HOST);
-#else
-#include <WiFiUDP.h>
-#endif
 
 /* DHT sensor */
 #if USE_DHT
@@ -245,7 +239,6 @@ int readBMP180(SFE_BMP180 sensor, double &P, double &T, double A) {
 
   if (ret == 0) {
     log_e("Error starting temperature measurement.");
-    Wire.reset();
     return 1;
   }
 
@@ -255,7 +248,6 @@ int readBMP180(SFE_BMP180 sensor, double &P, double &T, double A) {
 
   if (ret == 0) {
     log_e("Error retrieving temperature measurement.");
-    Wire.reset();
     return 1;
   }
 
@@ -263,7 +255,6 @@ int readBMP180(SFE_BMP180 sensor, double &P, double &T, double A) {
 
   if (ret == 0) {
     log_e("Error starting pressure measurement.");
-    Wire.reset();
     return 1;
   }
 
@@ -273,7 +264,6 @@ int readBMP180(SFE_BMP180 sensor, double &P, double &T, double A) {
 
   if (ret == 0) {
     log_e("Error retrieving pressure measurement.");
-    Wire.reset();
     return 1;
   }
 
@@ -287,21 +277,15 @@ int readBMP180(SFE_BMP180 sensor, double &P, double &T, double A) {
  * Send line to InfluxDB
  **/
 void sendLineToInfluxDB(String database, String line) {
-#if INFLUXDB_USE_HTTP
   HTTPClient http;
 
-  http.begin("http://" + influxdb_ip.toString() + ":" + String(INFLUXDB_PORT) + "/write?db=" + INFLUXDB_DATABASE);
+  http.begin("http://" + String(INFLUXDB_HOST) + "/write?db=" + String(INFLUXDB_DATABASE));
   http.addHeader("Content-Type", "text/plain");
+#if INFLUXDB_AUTH
+  http.setAuthorization(INFLUXDB_USER, INFLUXDB_PASS);
+#endif
   int response = http.POST(line);
   http.end();
 
   log_i("HTTP(%d) -> %s", response, line.c_str());
-#else
-  WiFiUDP udp;
-  udp.beginPacket(INFLUXDB_HOST, INFLUXDB_PORT);
-  udp.print(line);
-  udp.endPacket();
-
-  log_i("UDP -> %s", line.c_str());
-#endif
 }

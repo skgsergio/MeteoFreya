@@ -14,13 +14,11 @@
  * InfluxDB preferences
  **/
 
-/* InfluxDB through HTTP, if false UDP will be used */
-#define INFLUXDB_USE_HTTP true
+#define INFLUXDB_HOST "192.168.1.4:8086"
+#define INFLUXDB_AUTH true
+#define INFLUXDB_USER "meteofreya"
+#define INFLUXDB_PASS "freya1234"
 #define INFLUXDB_DATABASE "meteofreya"
-
-/* InfluxDB host and port, no matter what protocol you are using */
-#define INFLUXDB_HOST {192, 168, 1, 4}
-#define INFLUXDB_PORT 8086
 
 /**
  * Hardware preferences
